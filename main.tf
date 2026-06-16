@@ -33,6 +33,7 @@ module "vpc" {
   azs             = ["us-east-1a", "us-east-1b"]
   private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
   public_subnets  = ["10.0.101.0/24", "10.0.102.0/24"]
+  database_subnets = ["10.0.201.0/24", "10.0.202.0/24"]
 
   # COST SAVING: Single NAT Gateway instead of one per AZ
   enable_nat_gateway     = true
@@ -139,4 +140,13 @@ output "api_endpoint" {
 }
 output "s3_bucket_name" {
   value = aws_s3_bucket.data_lake.id
+}
+
+# ---------------------------------------------------------
+# 5. DOCKER REGISTRY (ECR)
+# ---------------------------------------------------------
+resource "aws_ecr_repository" "backend_repo" {
+  name                 = "${local.name_prefix}-backend"
+  image_tag_mutability = "MUTABLE"
+  force_destroy        = true # Makes it easy to delete later
 }
