@@ -148,5 +148,5 @@ output "s3_bucket_name" {
 resource "aws_ecr_repository" "backend_repo" {
   name                 = "${local.name_prefix}-backend"
   image_tag_mutability = "MUTABLE"
-  force_destroy        = true # Makes it easy to delete later
+  force_delete        = true # Makes it easy to delete later
 }
