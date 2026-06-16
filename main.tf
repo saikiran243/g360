@@ -141,3 +141,12 @@ output "api_endpoint" {
 output "s3_bucket_name" {
   value = aws_s3_bucket.data_lake.id
 }
+
+# ---------------------------------------------------------
+# 5. DOCKER REGISTRY (ECR)
+# ---------------------------------------------------------
+resource "aws_ecr_repository" "backend_repo" {
+  name                 = "${local.name_prefix}-backend"
+  image_tag_mutability = "MUTABLE"
+  force_destroy        = true # Makes it easy to delete later
+}
