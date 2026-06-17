@@ -270,3 +270,10 @@ resource "aws_apigatewayv2_route" "default_route" {
   route_key = "$default"
   target    = "integrations/${aws_apigatewayv2_integration.backend_integration.id}"
 }
+
+# This tells API Gateway to actually activate and deploy the routes we built!
+resource "aws_apigatewayv2_stage" "default_stage" {
+  api_id      = aws_apigatewayv2_api.backend_api.id
+  name        = "$default"
+  auto_deploy = true
+}
