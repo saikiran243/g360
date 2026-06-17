@@ -29,24 +29,19 @@ async def health_check():
 @app.post("/api/generate")
 async def generate_text(request: PromptRequest):
     try:
-        logger.info(f"Received prompt: {request.prompt}")
-        
-        # The new Amazon Nova Micro Model ID
         model_id = "amazon.nova-micro-v1:0"
 
-        # The new syntax required for Nova models
+        # Using the standard Bedrock Converse API format
         body = json.dumps({
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [{"text": request.prompt}]
-                }
-            ],
-            "schemaVersion": "messages-v1"
+            "inputText": request.prompt,
+            "textGenerationConfig": {
+                "maxTokenCount": 512,
+                "stopSequences": [],
+                "temperature": 0.7,
+                "topP": 0.9
+            }
         })
 
-        logger.info("Sending request to Bedrock Nova Micro...")
-        
         response = bedrock.invoke_model(
             modelId=model_id,
             body=body,
@@ -55,16 +50,18 @@ async def generate_text(request: PromptRequest):
         )
         
         response_body = json.loads(response.get('body').read())
-        logger.info("Successfully received response from Bedrock")
         
-        # Parse the Nova response structure
-        output_text = response_body.get('output', {}).get('message', {}).get('content', [{}])[0].get('text', 'No response generated')
+        # Amazon Titan/Nova standard response parsing
+        output_text = response_body.get('results')[0].get('outputText')
 
         return {
-            "source": "AWS Fargate (Private) via Nova Micro",
+            "source": "AWS Fargate (Private) via Nova",
             "ai_response": output_text
         }
 
     except Exception as e:
-        logger.error(f"Error during Bedrock invocation: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # RETURN THE EXACT ERROR TO THE BROWSER/TERMINAL
+        return {
+            "error_type": "AWS_BEDROCK_FAILURE",
+            "exact_error_message": str(e)
+        }
