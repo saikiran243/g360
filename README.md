@@ -1,4 +1,4 @@
-# G360 AI Backend: Secure Serverless Enterprise Architecture
+# demo-infra AI Backend: Secure Serverless Enterprise Architecture
 
 A production-grade, highly secure, and cost-optimized Generative AI backend built entirely on AWS. This project provisions a private-first serverless architecture using **Terraform** and deploys a **FastAPI** application on **AWS Fargate** to interact with **Amazon Bedrock**.
 
@@ -37,4 +37,4 @@ flowchart TD
     
     class API_GW,SD,CW,ECR aws;
     class Fargate compute;
-    class Bedrock,RDS,DynamoDB,S3 storage;  
+    class Bedrock,RDS,DynamoDB,S3 storage;
