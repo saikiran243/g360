@@ -230,7 +230,28 @@ resource "aws_ecs_service" "backend_service" {
     container_port = 8000
   }
 }
+# 1. Create the policy allowing Bedrock access
+resource "aws_iam_policy" "bedrock_invoke_policy" {
+  name        = "${local.name_prefix}-bedrock-policy"
+  description = "Allows ECS task to invoke Bedrock models"
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
+        Effect   = "Allow"
+        Resource = "*"
+      }
+    ]
+  })
+}
 
+# 2. Attach this policy to your existing task_role
+resource "aws_iam_role_policy_attachment" "task_role_bedrock_attach" {
+  role       = aws_iam_role.task_role.name
+  policy_arn = aws_iam_policy.bedrock_invoke_policy.arn
+}
 # ---------------------------------------------------------
 # 7. THE VPC LINK (Bridging API Gateway to Private Subnet)
 # ---------------------------------------------------------
