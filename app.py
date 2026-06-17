@@ -29,14 +29,13 @@ async def health_check():
 @app.post("/api/generate")
 async def generate_text(request: PromptRequest):
     try:
-        model_id = "amazon.nova-micro-v1:0"
+        # Use the classic Titan Express model
+        model_id = "amazon.titan-text-express-v1"
 
-        # Using the standard Bedrock Converse API format
         body = json.dumps({
             "inputText": request.prompt,
             "textGenerationConfig": {
                 "maxTokenCount": 512,
-                "stopSequences": [],
                 "temperature": 0.7,
                 "topP": 0.9
             }
@@ -50,18 +49,13 @@ async def generate_text(request: PromptRequest):
         )
         
         response_body = json.loads(response.get('body').read())
-        
-        # Amazon Titan/Nova standard response parsing
+        # Titan Express response structure
         output_text = response_body.get('results')[0].get('outputText')
 
         return {
-            "source": "AWS Fargate (Private) via Nova",
+            "source": "AWS Fargate via Titan Express",
             "ai_response": output_text
         }
 
     except Exception as e:
-        # RETURN THE EXACT ERROR TO THE BROWSER/TERMINAL
-        return {
-            "error_type": "AWS_BEDROCK_FAILURE",
-            "exact_error_message": str(e)
-        }
+        return {"error": str(e)}
