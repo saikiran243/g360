@@ -226,6 +226,8 @@ resource "aws_ecs_service" "backend_service" {
   
   service_registries {
     registry_arn = aws_service_discovery_service.backend_discovery.arn
+    container_name = "g360-app"
+    container_port = 8000
   }
 }
 
