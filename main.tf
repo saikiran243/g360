@@ -150,3 +150,121 @@ resource "aws_ecr_repository" "backend_repo" {
   image_tag_mutability = "MUTABLE"
   force_delete        = true # Makes it easy to delete later
 }
+
+# ---------------------------------------------------------
+# 6. RUNNING THE FARGATE TASK
+# ---------------------------------------------------------
+data "aws_caller_identity" "current" {}
+
+resource "aws_cloudwatch_log_group" "backend_logs" {
+  name              = "/ecs/${local.name_prefix}-backend"
+  retention_in_days = 1
+}
+
+resource "aws_iam_role" "execution_role" {
+  name = "${local.name_prefix}-execution-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17", Statement = [{ Action = "sts:AssumeRole", Effect = "Allow", Principal = { Service = "ecs-tasks.amazonaws.com" } }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_execution" {
+  role       = aws_iam_role.execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_ecs_task_definition" "backend_task" {
+  family                   = "${local.name_prefix}-task"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+  execution_role_arn       = aws_iam_role.execution_role.arn
+  task_role_arn            = aws_iam_role.task_role.arn
+
+  container_definitions = jsonencode([{
+    name      = "g360-app"
+    image     = "${data.aws_caller_identity.current.account_id}.dkr.ecr.us-east-1.amazonaws.com/${local.name_prefix}-backend:latest"
+    essential = true
+    portMappings = [{ containerPort = 8000, hostPort = 8000 }]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = { "awslogs-group" = aws_cloudwatch_log_group.backend_logs.name, "awslogs-region" = "us-east-1", "awslogs-stream-prefix" = "ecs" }
+    }
+  }])
+}
+
+resource "aws_security_group" "fargate_sg" {
+  name   = "${local.name_prefix}-fargate-sg"
+  vpc_id = module.vpc.vpc_id
+  ingress {
+  from_port   = 8000
+  to_port     = 8000
+  protocol    = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+egress {
+  from_port   = 0
+  to_port     = 0
+  protocol    = "-1"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+}
+
+resource "aws_ecs_service" "backend_service" {
+  name            = "${local.name_prefix}-service"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.backend_task.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = module.vpc.private_subnets
+    security_groups  = [aws_security_group.fargate_sg.id]
+    assign_public_ip = false 
+  }
+  
+  service_registries {
+    registry_arn = aws_service_discovery_service.backend_discovery.arn
+  }
+}
+
+# ---------------------------------------------------------
+# 7. THE VPC LINK (Bridging API Gateway to Private Subnet)
+# ---------------------------------------------------------
+resource "aws_service_discovery_private_dns_namespace" "internal" {
+  name = "${local.name_prefix}.internal"
+  vpc  = module.vpc.vpc_id
+}
+
+resource "aws_service_discovery_service" "backend_discovery" {
+  name = "api"
+  dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.internal.id
+    dns_records {
+  ttl  = 10
+  type = "SRV"
+}
+  }
+}
+
+resource "aws_apigatewayv2_vpc_link" "api_link" {
+  name               = "${local.name_prefix}-vpc-link"
+  security_group_ids = [aws_security_group.fargate_sg.id]
+  subnet_ids         = module.vpc.private_subnets
+}
+
+resource "aws_apigatewayv2_integration" "backend_integration" {
+  api_id             = aws_apigatewayv2_api.backend_api.id
+  integration_type   = "HTTP_PROXY"
+  integration_uri    = aws_service_discovery_service.backend_discovery.arn
+  integration_method = "ANY"
+  connection_type    = "VPC_LINK"
+  connection_id      = aws_apigatewayv2_vpc_link.api_link.id
+}
+
+resource "aws_apigatewayv2_route" "default_route" {
+  api_id    = aws_apigatewayv2_api.backend_api.id
+  route_key = "$default"
+  target    = "integrations/${aws_apigatewayv2_integration.backend_integration.id}"
+}
