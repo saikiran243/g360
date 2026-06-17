@@ -197,8 +197,18 @@ resource "aws_ecs_task_definition" "backend_task" {
 resource "aws_security_group" "fargate_sg" {
   name   = "${local.name_prefix}-fargate-sg"
   vpc_id = module.vpc.vpc_id
-  ingress { from_port = 8000, to_port = 8000, protocol = "tcp", cidr_blocks = ["0.0.0.0/0"] }
-  egress { from_port = 0, to_port = 0, protocol = "-1", cidr_blocks = ["0.0.0.0/0"] }
+  ingress {
+  from_port   = 8000
+  to_port     = 8000
+  protocol    = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+egress {
+  from_port   = 0
+  to_port     = 0
+  protocol    = "-1"
+  cidr_blocks = ["0.0.0.0/0"]
+}
 }
 
 resource "aws_ecs_service" "backend_service" {
@@ -231,7 +241,10 @@ resource "aws_service_discovery_service" "backend_discovery" {
   name = "api"
   dns_config {
     namespace_id = aws_service_discovery_private_dns_namespace.internal.id
-    dns_records { ttl = 10, type = "SRV" }
+    dns_records {
+  ttl  = 10
+  type = "SRV"
+}
   }
 }
 
