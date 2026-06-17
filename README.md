@@ -37,4 +37,4 @@ flowchart TD
     
     class API_GW,SD,CW,ECR aws;
     class Fargate compute;
-    class Bedrock,RDS,DynamoDB,S3 storage;
+    class Bedrock,RDS,DynamoDB,S3 storage;  

@@ -29,16 +29,20 @@ async def health_check():
 @app.post("/api/generate")
 async def generate_text(request: PromptRequest):
     try:
-        # Use the classic Titan Express model
-        model_id = "amazon.titan-text-express-v1"
+        # Matches the model_id specified in your terraform locals
+        model_id = "anthropic.claude-3-haiku-20240307-v1:0"
 
+        # Claude 3 uses the Messages API structure
         body = json.dumps({
-            "inputText": request.prompt,
-            "textGenerationConfig": {
-                "maxTokenCount": 512,
-                "temperature": 0.7,
-                "topP": 0.9
-            }
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 512,
+            "temperature": 0.7,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [{"type": "text", "text": request.prompt}]
+                }
+            ]
         })
 
         response = bedrock.invoke_model(
@@ -49,13 +53,15 @@ async def generate_text(request: PromptRequest):
         )
         
         response_body = json.loads(response.get('body').read())
-        # Titan Express response structure
-        output_text = response_body.get('results')[0].get('outputText')
+        
+        # Parse the Claude 3 response structure
+        output_text = response_body.get('content')[0].get('text')
 
         return {
-            "source": "AWS Fargate via Titan Express",
+            "source": "AWS Fargate via Claude 3 Haiku",
             "ai_response": output_text
         }
 
     except Exception as e:
-        return {"error": str(e)}
+        logger.error(f"Bedrock invocation error: {str(e)}")
+        # Returning a 500 status on error is best practice for
