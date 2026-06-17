@@ -65,7 +65,19 @@ jobs:
               repo: context.repo.repo,
               body: output
             })
+  
+      - name: Login to Amazon ECR
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Build and Push Docker Image
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          IMAGE_URI="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/g360-backend:latest"
+          docker build -t $IMAGE_URI .
+          docker push $IMAGE_URI
+      # ---------------------------------------------------
+      
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve
